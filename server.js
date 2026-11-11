@@ -277,6 +277,16 @@ function clientIp(req) {
   return (xf ? xf.split(',')[0] : req.socket.remoteAddress || '').trim();
 }
 
+// Dirección pública de la web (para la vista previa en redes sociales, que exige URLs absolutas).
+// Se puede fijar con PUBLIC_URL; si no, se deduce de la petición.
+function origin(req) {
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/+$/, '');
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost').split(',')[0].trim();
+  const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+  const safeHost = /^[a-z0-9.-]+(:\d+)?$/i.test(host) ? host : 'localhost';
+  return `${proto === 'https' ? 'https' : 'http'}://${safeHost}`;
+}
+
 const routes = {
   '/api/now': () => madridNow(),
   '/api/realtime': q => realtime(validDate(q.get('date')) ? q.get('date') : madridNow().date),
@@ -320,7 +330,9 @@ const server = http.createServer(async (req, res) => {
   if (p === '/' || p === '\\') p = '/index.html';
   const f = await staticFile(p);
   if (!f) return send(req, res, 404, 'No encontrado', 'text/plain; charset=utf-8');
-  send(req, res, 200, f.body, f.type, { 'Cache-Control': f.type.startsWith('text/html') ? 'no-cache' : 'public, max-age=3600' });
+  let body = f.body;
+  if (p === '/index.html') body = Buffer.from(body.toString('utf8').replaceAll('__ORIGIN__', origin(req)));
+  send(req, res, 200, body, f.type, { 'Cache-Control': f.type.startsWith('text/html') ? 'no-cache' : 'public, max-age=3600' });
 });
 
 server.listen(PORT, HOST, () => {
