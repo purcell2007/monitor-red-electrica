@@ -1,0 +1,12 @@
+{
+  "name": "monitor-red-electrica",
+  "version": "1.0.0",
+  "description": "Monitor en tiempo real de la demanda eléctrica en España con datos de Red Eléctrica (REData)",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

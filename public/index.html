@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1420" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Monitor en tiempo real de la demanda eléctrica en España: consumo real y previsto, precios, mix de generación, sistemas y comunidades. Datos de Red Eléctrica.">
+  <title>Monitor de la red eléctrica</title>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Monitor de la red eléctrica · España en tiempo real">
+  <meta property="og:description" content="Consumo eléctrico real y previsto cada 5 minutos, precios, mix de generación, sistemas y comunidades. Datos de Red Eléctrica.">
+  <meta property="og:image" content="og.png">
+  <meta property="og:locale" content="es_ES">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>
+        <div>
+          <h1>Monitor de la red eléctrica</h1>
+          <p>España · datos oficiales de Red Eléctrica</p>
+        </div>
+      </div>
+      <div class="controls">
+        <span class="status" id="status"><i></i><b id="statusText">Conectando…</b></span>
+        <label class="ctl">
+          <span>Actualizar</span>
+          <select id="refresh" aria-label="Frecuencia de actualización">
+            <option value="30">cada 30 s</option>
+            <option value="60" selected>cada minuto</option>
+            <option value="300">cada 5 min</option>
+            <option value="0">en pausa</option>
+          </select>
+        </label>
+        <label class="ctl">
+          <span>Día</span>
+          <input type="date" id="date" aria-label="Día a consultar">
+        </label>
+        <button class="icon-btn" id="themeBtn" aria-label="Cambiar tema claro/oscuro" title="Tema claro/oscuro">
+          <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="kpis" id="kpis" aria-label="Indicadores principales"></section>
+
+    <section class="card hero">
+      <div class="card-title">
+        <h2>Consumo real y previsto</h2>
+        <p class="lead">Demanda eléctrica nacional cada cinco minutos, en miles de MW. La <mark class="m-prev">prevista</mark> es la que publica Red Eléctrica de madrugada, y la <mark class="m-real">real</mark>, la consumida. Para comparar, en gris, <b class="g1" id="lblYday">ayer</b> y <b class="g2" id="lblWeek">hace una semana</b>.</p>
+      </div>
+      <div class="chips" id="mainToggles">
+        <button class="chip on" data-k="yday"><i class="sw sw-g1"></i>Ayer</button>
+        <button class="chip on" data-k="week"><i class="sw sw-g2"></i>Hace 7 días</button>
+        <button class="chip" data-k="prog"><i class="sw sw-prog"></i>Programada</button>
+        <button class="chip" data-k="tariff"><i class="sw sw-tar"></i>Tramos de tarifa</button>
+      </div>
+      <div class="chart-frame">
+        <div class="chart-head">
+          <span class="live-tag" id="liveTag"><i></i><b>En directo</b><span id="liveTime"></span></span>
+          <span class="day-delta">En el día <b id="dayDelta">—</b></span>
+        </div>
+        <div class="chart tall" id="mainChart" role="img" aria-label="Gráfico de demanda real y prevista"></div>
+        <div class="tariff-legend" id="tariffLegend" hidden>
+          <span><i class="t-p1"></i>Punta (P1)</span><span><i class="t-p2"></i>Llano (P2)</span><span><i class="t-p3"></i>Valle (P3)</span>
+          <em>Peajes 2.0TD (consumidores domésticos). Fines de semana y festivos nacionales, todo valle.</em>
+        </div>
+      </div>
+      <p class="note">La cifra del día compara la energía consumida desde las 0.00 con la prevista. Una diferencia de 3 o 4 puntos puede ser error de la previsión. Red Eléctrica publica un dato cada 5 minutos con unos minutos de retraso; esta página lo consulta automáticamente.</p>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="card-title">
+          <h2>Desviación sobre la previsión</h2>
+          <p class="lead">Diferencia entre lo consumido y lo previsto en cada intervalo de 5 minutos, en MW. Por <span class="txt-up">encima</span> o por <span class="txt-down">debajo</span> de lo esperado.</p>
+        </div>
+        <div class="chart" id="devChart"></div>
+        <div class="mini-stats" id="devStats"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <h2>Precio de la electricidad</h2>
+          <p class="lead">Barras: precio regulado <b>PVPC</b> por horas (€/MWh), coloreado de más <span class="txt-up">barato</span> a más <span class="txt-down">caro</span>. Línea: precio del <b>mercado mayorista</b> cada 15 minutos.</p>
+        </div>
+        <div class="chart" id="priceChart"></div>
+        <div class="mini-stats" id="priceStats"></div>
+      </section>
+    </div>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="card-title">
+          <h2>¿De dónde viene la electricidad?</h2>
+          <p class="lead">Generación por tecnología. <span id="mixDayLbl"></span></p>
+        </div>
+        <div class="chips small" id="mixDays"></div>
+        <div class="mix">
+          <div class="chart donut" id="mixDonut"></div>
+          <ul class="mix-list" id="mixList"></ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <h2>Mix y emisiones, últimos 30 días</h2>
+          <p class="lead">Peso de cada tecnología en la generación diaria y emisiones de CO₂ equivalente por kWh generado.</p>
+        </div>
+        <div class="chart" id="mixBars"></div>
+        <div class="chart short" id="co2Chart"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Sistemas eléctricos</h2>
+        <p class="lead">Demanda diaria de cada sistema en los últimos 60 días, en GWh. Las islas, Ceuta y Melilla son sistemas aislados con su propio equilibrio entre producción y consumo. Los puntos marcan sábados y domingos.</p>
+      </div>
+      <div class="systems" id="systems"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">
+        <h2>Comunidades autónomas</h2>
+        <p class="lead">Producción eléctrica mensual por comunidad. Red Eléctrica no publica la demanda por comunidad (salvo los sistemas aislados): lo que muestra es dónde se genera la electricidad y con qué tecnologías.</p>
+      </div>
+      <div class="region-ctl">
+        <label class="ctl"><span>Indicador</span><select id="regMetric"></select></label>
+        <label class="ctl"><span>Mes</span><select id="regMonth"></select></label>
+      </div>
+      <div class="regions">
+        <div class="chart map" id="regMap"></div>
+        <div class="rank" id="regRank"></div>
+      </div>
+      <div class="map-legend" id="regLegend"></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="card-title">
+          <h2>Consumo por sectores</h2>
+          <p class="lead">Índice de Red Eléctrica (IRE): variación interanual del consumo de los grandes consumidores, corregida por calendario y temperatura. Separa <b class="c-ind">industria</b> y <b class="c-ser">servicios</b>; el <b class="c-gen">general</b> los agrupa.</p>
+        </div>
+        <div class="kpi-row" id="ireStats"></div>
+        <div class="chart" id="ireChart"></div>
+        <p class="note">El consumo doméstico no se publica de forma separada: está incluido en la demanda nacional, que también refleja la diferencia entre días laborables y fines de semana.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-title">
+          <h2>Tendencia de la demanda</h2>
+          <p class="lead">Demanda nacional diaria (media móvil de 7 días, GWh): <b class="c-now">últimos 12 meses</b> frente al <b class="c-prev">año anterior</b>.</p>
+        </div>
+        <div class="kpi-row" id="natStats"></div>
+        <div class="chart" id="natChart"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p><b>Fuente:</b> Red Eléctrica — REData (apidatos.ree.es): demanda en tiempo real, mercados, generación, balance eléctrico e IRE. Horas en horario peninsular.</p>
+    <p>La demanda se publica cada 5 minutos; no existen datos públicos al segundo. Los datos de generación del día en curso son provisionales.</p>
+  </footer>
+
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-composite-projections@1.4.0/d3-composite-projections.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
